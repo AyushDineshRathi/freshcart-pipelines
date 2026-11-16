@@ -22,3 +22,6 @@ iris_project/.ssh_tunnel/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+screenshots/
+From_Git_to_Gold_Final.docx
+From_Git_to_Gold_Report_Draft.docx
