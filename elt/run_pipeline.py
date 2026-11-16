@@ -2,6 +2,7 @@
 
 import argparse
 from datetime import date, datetime, timedelta, timezone
+from dataclasses import dataclass
 from pathlib import Path
 import sys
 from uuid import uuid4
@@ -35,6 +36,12 @@ ALL_STAGES = (
     "gold",
     "quality",
 )
+
+
+@dataclass(frozen=True)
+class ExtractionBatch:
+    files: tuple[tuple[str, Path], ...]
+    record_counts: tuple[tuple[str, int], ...]
 
 
 def _run_sql_file(connection, file_name: str) -> None:
@@ -71,20 +78,29 @@ def _log_step(
         cursor.close()
 
 
-def _run_logged_step(connection, run_id: str, step: str, action):
+def _run_logged_step(
+    connection,
+    run_id: str,
+    step: str,
+    action,
+    success_detail: str | None = None,
+):
     try:
         result = action()
+        detail = success_detail or "Completed"
+        if callable(detail):
+            detail = detail(result)
     except Exception as error:
         detail = f"{type(error).__name__}: {error}"
         _log_step(connection, run_id, step, "FAILED", detail)
         raise
-    _log_step(connection, run_id, step, "SUCCEEDED", "Completed")
+    _log_step(connection, run_id, step, "SUCCEEDED", detail)
     return result
 
 
 def _extract_sources(
     run_id: str, mock: bool, run_date: date
-) -> list[tuple[str, Path]]:
+) -> ExtractionBatch:
     session = extract.http_session()
     try:
         fx_start = run_date - timedelta(days=35)
@@ -103,6 +119,11 @@ def _extract_sources(
             source: list(records)
             for source, records in source_iterables.items()
         }
+        for source, records in source_records.items():
+            if any(not isinstance(record, dict) for record in records):
+                raise extract.InvalidAPIResponseError(
+                    f"{source} extraction must produce JSON objects"
+                )
     finally:
         session.close()
 
@@ -111,12 +132,23 @@ def _extract_sources(
         path = extract.write_landing(source, records, run_id, run_date)
         if path is not None:
             written.append((source, path))
-    return written
+    return ExtractionBatch(
+        files=tuple(written),
+        record_counts=tuple(
+            (source, len(records))
+            for source, records in source_records.items()
+        ),
+    )
 
 
-def _load_extracted_files(connection, files: list[tuple[str, Path]]) -> None:
-    for source, path in files:
+def _load_extracted_files(
+    connection, batch: ExtractionBatch
+) -> int:
+    loaded_files = 0
+    for source, path in batch.files:
         load_file(connection, path, source)
+        loaded_files += 1
+    return loaded_files
 
 
 def run_pipeline(
@@ -142,6 +174,12 @@ def run_pipeline(
             "setup",
             lambda: _run_sql_file(connection, "00_setup.sql"),
         )
+        _run_logged_step(
+            connection,
+            run_id,
+            "ingestion_ledger_migration",
+            lambda: _run_sql_file(connection, "01_ingestion_files.sql"),
+        )
 
         if mode in {"mock", "live"} and stage == "all":
             files = _run_logged_step(
@@ -153,12 +191,21 @@ def run_pipeline(
                     mock=(mode == "mock"),
                     run_date=run_date,
                 ),
+                success_detail=lambda batch: (
+                    "Validated source records: "
+                    + ", ".join(
+                        f"{source}={count}"
+                        for source, count in batch.record_counts
+                    )
+                    + f"; landing files={len(batch.files)}"
+                ),
             )
             _run_logged_step(
                 connection,
                 run_id,
                 "load_bronze",
                 lambda: _load_extracted_files(connection, files),
+                success_detail=lambda count: f"Files loaded or already loaded: {count}",
             )
         elif mode != "transform-only":
             print(

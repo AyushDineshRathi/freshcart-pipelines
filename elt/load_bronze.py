@@ -1,14 +1,10 @@
 
-from pathlib import Path
-
+from .extract import get_landing_dir
 from .snowflake_io import (
     get_snowflake_connection,
     load_file,
 )
 
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-LANDING_DIR = PROJECT_ROOT / "elt" / "landing"
 
 SOURCES = {
     "web": "ORDERS_RAW",
@@ -19,6 +15,15 @@ SOURCES = {
 }
 
 
+def source_files(source: str):
+    """Return landing files using the same configured root as extraction."""
+    if source not in SOURCES:
+        raise ValueError(f"Unsupported source: {source}")
+    return sorted(
+        (get_landing_dir() / source).glob("*/*.json.gz")
+    )
+
+
 def main():
     connection = get_snowflake_connection()
 
@@ -27,11 +32,7 @@ def main():
 
         for source, target in SOURCES.items():
 
-            source_dir = LANDING_DIR / source
-
-            files = sorted(
-                source_dir.glob("*/*.json.gz")
-            )
+            files = source_files(source)
 
             if not files:
                 print(f"\nNo files found for {source}")
