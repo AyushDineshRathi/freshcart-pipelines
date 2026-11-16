@@ -1,15 +1,15 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-# Support execution both inside and outside Mage
-try:
-    from mage_ai.data_preparation.decorators import transformer, test
-except ImportError:
-    def transformer(func):
-        return func
+if "transformer" not in globals() or "test" not in globals():
+    try:
+        from mage_ai.data_preparation.decorators import transformer, test
+    except ImportError:
+        def transformer(func):
+            return func
 
-    def test(func):
-        return func
+        def test(func):
+            return func
 
 
 @transformer

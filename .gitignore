@@ -12,3 +12,13 @@ venv/
 # Generated ELT landing data
 /landing/
 /elt/landing/
+
+# Mage runtime and local state
+mage_data/
+iris_project/.file_versions/
+iris_project/.ssh_tunnel/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
