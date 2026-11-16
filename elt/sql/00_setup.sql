@@ -80,42 +80,62 @@ CREATE TABLE IF NOT EXISTS BRONZE.PINCODE_RAW (
 );
 
 -- 6. Reference seed tables
-CREATE OR REPLACE TABLE REF.TIER_MULTIPLIER AS
-SELECT *
-FROM VALUES
-  ('Silver', 1),
-  ('Gold', 2),
-  ('Platinum', 3)
-AS V(TIER, MULTIPLIER);
+CREATE TABLE IF NOT EXISTS REF.TIER_MULTIPLIER (
+  TIER STRING,
+  MULTIPLIER NUMBER
+);
 
-CREATE OR REPLACE TABLE REF.STATE_REGION AS
-SELECT *
-FROM VALUES
-  ('Tamil Nadu','South'),
-  ('Karnataka','South'),
-  ('Kerala','South'),
-  ('Andhra Pradesh','South'),
-  ('Telangana','South'),
-  ('Puducherry','South'),
-  ('Maharashtra','West'),
-  ('Gujarat','West'),
-  ('Goa','West'),
-  ('Rajasthan','West'),
-  ('Delhi','North'),
-  ('Haryana','North'),
-  ('Punjab','North'),
-  ('Uttar Pradesh','North'),
-  ('Himachal Pradesh','North'),
-  ('Jammu and Kashmir','North'),
-  ('Uttarakhand','North'),
-  ('West Bengal','East'),
-  ('Odisha','East'),
-  ('Bihar','East'),
-  ('Jharkhand','East'),
-  ('Assam','East'),
-  ('Madhya Pradesh','Central'),
-  ('Chhattisgarh','Central')
-AS V(STATE, REGION);
+MERGE INTO REF.TIER_MULTIPLIER AS target
+USING (
+  SELECT column1::STRING AS TIER, column2::NUMBER AS MULTIPLIER
+  FROM VALUES
+    ('Silver', 1),
+    ('Gold', 2),
+    ('Platinum', 3)
+) AS source
+ON target.TIER = source.TIER
+WHEN NOT MATCHED THEN
+  INSERT (TIER, MULTIPLIER)
+  VALUES (source.TIER, source.MULTIPLIER);
+
+CREATE TABLE IF NOT EXISTS REF.STATE_REGION (
+  STATE STRING,
+  REGION STRING
+);
+
+MERGE INTO REF.STATE_REGION AS target
+USING (
+  SELECT column1::STRING AS STATE, column2::STRING AS REGION
+  FROM VALUES
+    ('Tamil Nadu','South'),
+    ('Karnataka','South'),
+    ('Kerala','South'),
+    ('Andhra Pradesh','South'),
+    ('Telangana','South'),
+    ('Puducherry','South'),
+    ('Maharashtra','West'),
+    ('Gujarat','West'),
+    ('Goa','West'),
+    ('Rajasthan','West'),
+    ('Delhi','North'),
+    ('Haryana','North'),
+    ('Punjab','North'),
+    ('Uttar Pradesh','North'),
+    ('Himachal Pradesh','North'),
+    ('Jammu and Kashmir','North'),
+    ('Uttarakhand','North'),
+    ('West Bengal','East'),
+    ('Odisha','East'),
+    ('Bihar','East'),
+    ('Jharkhand','East'),
+    ('Assam','East'),
+    ('Madhya Pradesh','Central'),
+    ('Chhattisgarh','Central')
+) AS source
+ON UPPER(target.STATE) = UPPER(source.STATE)
+WHEN NOT MATCHED THEN
+  INSERT (STATE, REGION)
+  VALUES (source.STATE, source.REGION);
 
 CREATE TABLE IF NOT EXISTS REF.PINCODE_GEO (
   PINCODE STRING PRIMARY KEY,

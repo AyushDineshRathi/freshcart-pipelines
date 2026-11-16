@@ -15,6 +15,7 @@ from . import mock_data
 
 
 log = logging.getLogger("extract")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def http_session():
@@ -116,11 +117,13 @@ def write_landing(source, records, run_id, run_date):
         log.info("%s: 0 records, nothing written", source)
         return None
 
-    folder = (
-        Path(os.getenv("LANDING_DIR", "landing"))
-        / source
-        / run_date.isoformat()
+    landing_dir = Path(
+        os.getenv("LANDING_DIR", "elt/landing")
     )
+    if not landing_dir.is_absolute():
+        landing_dir = PROJECT_ROOT / landing_dir
+
+    folder = landing_dir / source / run_date.isoformat()
 
     folder.mkdir(parents=True, exist_ok=True)
 

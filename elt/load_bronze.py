@@ -1,7 +1,7 @@
 
 from pathlib import Path
 
-from snowflake_io import (
+from .snowflake_io import (
     get_snowflake_connection,
     load_file,
 )
@@ -15,6 +15,7 @@ SOURCES = {
     "mobile": "ORDERS_RAW",
     "crm": "CUSTOMERS_RAW",
     "fx": "FX_RAW",
+    "pincode": "PINCODE_RAW",
 }
 
 
